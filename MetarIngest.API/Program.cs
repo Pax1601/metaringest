@@ -1,41 +1,84 @@
+/*********************************************************************************
+* METAR Ingest API
+* This is the main entry point for the METAR Ingest API application. It sets up the web host, configures services, and defines the HTTP request pipeline.
+* The application uses Entity Framework Core for database access and is configured to use a SQLite database for simplicity. 
+* It uses a Minimal API with a Swagger UI for testing and documentation.
+*********************************************************************************/
+
+using Microsoft.EntityFrameworkCore;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"))); // Configure the database context to use SQLite with the connection string from appsettings.json
+
+// Register application services
+builder.Services.AddHttpClient<IDownloadService, DownloadService>();
+builder.Services.AddScoped<IIngestionService, IngestionService>(); 
+builder.Services.AddHostedService(
+    serviceProvider =>
+    {
+        var serviceScopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
+        var logger = serviceProvider.GetRequiredService<ILogger<PeriodicUpdateService>>();
+        var updateInterval = builder.Configuration.GetValue("UpdateInterval", TimeSpan.FromMinutes(10)); // Read the update interval from configuration, default to 10 minutes if not specified
+        return new PeriodicUpdateService(serviceScopeFactory, logger, updateInterval);
+    }
+); // Read the update interval from configuration and pass it to the PeriodicUpdateService constructor
+
+// Add services for controllers and Swagger support
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(); 
 
 var app = builder.Build();
+
+// Apply database migrations at startup
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    dbContext.Database.Migrate(); // Apply any pending migrations
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger(); // Enable Swagger middleware in development environment
+    app.UseSwaggerUI(); // Enable Swagger UI middleware in development environment
 }
 
-app.UseHttpsRedirection();
+app.UseHttpsRedirection(); // Redirect HTTP requests to HTTPS
 
-var summaries = new[]
+// Add a get method to retrieve the latest METAR observation for a given station
+app.MapGet("/observations/{stationId}", async (string stationId, AppDbContext dbContext) =>
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+    var observation = await dbContext.Observations
+        .Where(o => o.StationId == stationId)
+        .OrderByDescending(o => o.ObservationTime)
+        .FirstOrDefaultAsync(); // Retrieve the latest observation for the specified station ID
 
-app.MapGet("/weatherforecast", () =>
+    if (observation == null)
+    {
+        return Results.NotFound(); 
+    }
+
+    return Results.Ok(observation); 
+});
+
+// Add a get method to retrieve the average temperature for a given station over the last 24 hours
+app.MapGet("/observations/{stationId}/average-temperature", async (string stationId, AppDbContext dbContext) =>
 {
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+    var cutoffTime = DateTime.UtcNow.AddHours(-24); // Calculate the cutoff time for the last 24 hours
+    var averageTemperature = await dbContext.Observations
+        .Where(o => o.StationId == stationId && o.ObservationTime >= cutoffTime)
+        .AverageAsync(o => (double?)o.Temperature); // Calculate the average temperature for the specified station ID over the last 24 hours
 
-app.Run();
+    if (averageTemperature == null)
+    {
+        return Results.NotFound(); 
+    }
 
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
+    return Results.Ok(new { StationId = stationId, AverageTemperature = averageTemperature }); 
+});
+
+app.Run(); // Run the application
+
