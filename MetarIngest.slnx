@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="MetarIngest.API.Tests/MetarIngest.API.Tests.csproj" />
+  <Project Path="MetarIngest.API/MetarIngest.API.csproj" />
+</Solution>
