@@ -41,8 +41,9 @@ public class Program
                     }
                     else
                     {
+                        var connectionString = configuration.GetValue<string>("ConnectionString") ?? "Data Source=metaringest.db";
                         services.AddDbContext<AppDbContext>(options =>
-                            options.UseSqlite(configuration.GetConnectionString("DefaultConnection")));
+                            options.UseSqlite(connectionString));
                     }
 
                     // Configure settings
@@ -60,6 +61,7 @@ public class Program
                         }
 
                         options.EnablePeriodicUpdates = configuration.GetValue("EnablePeriodicUpdates", true);
+                        options.ConnectionString = configuration.GetValue<string>("ConnectionString") ?? "Data Source=metaringest.db";
                     });
 
                     // Register application services

@@ -122,6 +122,16 @@ public class DownloadService : IDownloadService
                     continue; // Skip this record if any required field is missing
                 }
 
+                // Convert the observation time to UTC
+                if (observationTime.Kind == DateTimeKind.Unspecified)
+                {
+                    observationTime = DateTime.SpecifyKind(observationTime, DateTimeKind.Utc);
+                }
+                else if (observationTime.Kind == DateTimeKind.Local)
+                {
+                    observationTime = observationTime.ToUniversalTime();
+                }
+
                 var observation = CreateObservation(stationId, observationTime, temperature, rawMetar);
                 if (observation != null)
                 {

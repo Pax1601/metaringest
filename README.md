@@ -4,53 +4,29 @@ Exercise on creation of an ASP.NET Core project that periodically ingests aviati
 ## Prerequisites
 
 - [.NET 10.0 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) or later
-- A code editor (Visual Studio 2025, Visual Studio Code, or JetBrains Rider recommended)
-- Internet connection (for downloading METAR data from NOAA)
 
 ## Building the Project
 
-### Using the Command Line
-
-1. Clone the repository:
-   ```bash
-   git clone <repository-url>
-   cd metaringest
-   ```
-
-2. Restore dependencies:
-   ```bash
-   dotnet restore
-   ```
-
-3. Build the project:
-   ```bash
-   dotnet build
-   ```
-
-### Using Visual Studio
-
-1. Open `MetarIngest.slnx` in Visual Studio 2025
-2. Build the solution using `Build > Build Solution` or press `Ctrl+Shift+B`
-
-## Running the Application
-
-### Using the Command Line
-
-Navigate to the API project directory and run:
+### Building and running
 ```bash
+git clone <repository-url>
+cd metaringest
+dotnet restore
+dotnet build
+
 cd MetarIngest.API
-dotnet run
+dotnet run --launch-profile http
 ```
+or
+```
+dotnet run --launch-profile https
+```
+Note that using the https profile may require SSL certificates to be installed.
 
 The application will start and be available at:
 - HTTP: `http://localhost:5000`
 - HTTPS: `https://localhost:5001`
 - Swagger UI: `https://localhost:5001/swagger`
-
-### Using Visual Studio
-
-1. Set `MetarIngest.API` as the startup project
-2. Press `F5` to run with debugging or `Ctrl+F5` to run without debugging
 
 ## Configuration
 
@@ -92,8 +68,24 @@ dotnet test
 ### Running Tests with Coverage
 
 ```bash
-dotnet test --collect:"XPlat Code Coverage"
+dotnet test --collect:"XPlat Code Coverage" --settings:.runsettings
 ```
+
+The `.runsettings` file configures coverage to only include your code (`MetarIngest.API`) and exclude:
+- Test assemblies
+- Framework code (Microsoft.*, System.*)
+- Database migrations
+- Auto-generated code
+
+### Generating HTML Coverage Reports
+
+After running tests with coverage, generate an HTML report:
+
+```bash
+reportgenerator -reports:"MetarIngest.API.Tests\TestResults\**\coverage.cobertura.xml" -targetdir:"coveragereport" -reporttypes:Html
+```
+
+Then open `coveragereport\index.html` in your browser.
 
 ### Test Projects
 

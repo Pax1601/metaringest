@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Data.Sqlite;
 
 // Custom factory that configures settings before Program runs
 public class TestWebApplicationFactory : WebApplicationFactory<Program>
@@ -196,6 +197,59 @@ public class IntegrationTests
             var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             await dbContext.Database.EnsureDeletedAsync();
             factory.Dispose();
+        }
+    }
+
+    // Positive test case: Start the application using a test SQLite database, fetch the latest observations, and then try to retrieve both the latest observation and the average temperature testing the HTTP endpoints
+    [Fact]
+    public async Task FetchLatestObservations_ShouldReturnData_WithSQLite()
+    {
+        var databaseName = $"TestDatabase_{Guid.NewGuid()}.db";
+        
+        // Create a test-specific factory with configuration set BEFORE Program runs
+        var factory = new TestWebApplicationFactory(new Dictionary<string, string?>
+        {
+            ["UseInMemoryDatabase"] = "false",
+            ["ConnectionString"] = $"Data Source={databaseName}",
+            ["EnablePeriodicUpdates"] = "true"
+        });
+
+        using var client = factory.CreateClient();
+
+        try
+        {
+            // Wait for periodic updates to populate the database
+            await Task.Delay(2000);
+
+            // Fetch the latest observation for a known station ID (Milan Linate Airport - LIML)
+            var response = await client.GetAsync("/observations/LIML");
+            response.EnsureSuccessStatusCode();
+            var observationJson = await response.Content.ReadAsStringAsync();
+            Assert.False(string.IsNullOrEmpty(observationJson), "The response should contain observation data.");
+
+            // Fetch the average temperature for a known station ID (Milan Linate Airport - LIML)
+            var avgTempResponse = await client.GetAsync("/observations/LIML/average-temperature");
+            avgTempResponse.EnsureSuccessStatusCode();
+            var avgTempJson = await avgTempResponse.Content.ReadAsStringAsync();
+            Assert.False(string.IsNullOrEmpty(avgTempJson), "The response should contain average temperature data.");
+        }
+        finally
+        {
+            // Stop the application and close all connections
+            factory.Dispose();
+            
+            // Clear all SQLite connection pools to release file locks
+            SqliteConnection.ClearAllPools();
+            
+            // Force garbage collection to release any lingering resources
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            
+            // Delete the SQLite file after all connections are closed
+            if (File.Exists(databaseName))
+            {
+                File.Delete(databaseName);
+            }
         }
     }
 }
