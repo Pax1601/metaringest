@@ -4,20 +4,19 @@
 * The service is a background service.
 *********************************************************************************/
 
+using Microsoft.Extensions.Options;
+
 public class PeriodicUpdateService: BackgroundService
 {
     private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly ILogger<PeriodicUpdateService> _logger;
-    private TimeSpan _updateInterval = TimeSpan.FromMinutes(10); // Update every 10 minutes by default
+    private readonly TimeSpan _updateInterval;
 
-    public PeriodicUpdateService(IServiceScopeFactory serviceScopeFactory, ILogger<PeriodicUpdateService> logger, TimeSpan? updateInterval = null)
+    public PeriodicUpdateService(IServiceScopeFactory serviceScopeFactory, ILogger<PeriodicUpdateService> logger, IOptions<MetarSettings> settings)
     {
         _serviceScopeFactory = serviceScopeFactory;
         _logger = logger;
-        if (updateInterval.HasValue)
-        {
-            _updateInterval = updateInterval.Value;
-        }
+        _updateInterval = settings.Value.UpdateInterval;
 
         _logger.LogInformation("PeriodicUpdateService initialized with update interval of {Minutes} minutes", _updateInterval.TotalMinutes);
     }

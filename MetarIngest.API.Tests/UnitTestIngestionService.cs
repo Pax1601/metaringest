@@ -65,7 +65,7 @@ public class UnitTestIngestionService
     {
         // Create an in-memory database context for testing
         var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseInMemoryDatabase(databaseName: "TestDatabase")
+            .UseInMemoryDatabase(databaseName: "TestDatabase1")
             .Options;
         var dbContext = new AppDbContext(options);
         
@@ -98,7 +98,7 @@ public class UnitTestIngestionService
     {
         // Create an in-memory database context for testing
         var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseInMemoryDatabase(databaseName: "TestDatabase")
+            .UseInMemoryDatabase(databaseName: "TestDatabase2")
             .Options;
         var dbContext = new AppDbContext(options);
         

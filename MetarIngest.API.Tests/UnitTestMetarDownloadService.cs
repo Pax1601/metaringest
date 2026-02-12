@@ -2,6 +2,7 @@
 
 using System.Reflection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 
 public class UnitTestDownloadService
@@ -14,7 +15,8 @@ public class UnitTestDownloadService
         // Download a real GZipped METAR file from the URL and verify that it returns a non-empty stream
         var httpClient = new HttpClient();
         var mockLogger = new Mock<ILogger<DownloadService>>();
-        var service = new DownloadService(httpClient, mockLogger.Object);
+        var settings = Options.Create(new MetarSettings());
+        var service = new DownloadService(httpClient, mockLogger.Object, settings);
         var stream = await service.DownloadMetarsGZipAsync();
         Assert.NotNull(stream);
         Assert.True(stream.Length > 0, "The downloaded stream should not be empty.");
@@ -31,7 +33,8 @@ public class UnitTestDownloadService
         
         // Create an instance of the DownloadService to call the UnzipGzippedStream method
         var mockLogger = new Mock<ILogger<DownloadService>>();
-        var service = new DownloadService(new HttpClient(), mockLogger.Object);
+        var settings = Options.Create(new MetarSettings());
+        var service = new DownloadService(new HttpClient(), mockLogger.Object, settings);
         var uncompressedStream = service.UnzipGzippedStream(gzippedStream);
         Assert.NotNull(uncompressedStream);
 
@@ -50,7 +53,8 @@ public class UnitTestDownloadService
     {
         // Verify that passing a null stream to UnzipGzippedStream returns an empty stream
         var mockLogger = new Mock<ILogger<DownloadService>>();
-        var service = new DownloadService(new HttpClient(), mockLogger.Object);
+        var settings = Options.Create(new MetarSettings());
+        var service = new DownloadService(new HttpClient(), mockLogger.Object, settings);
         var resultStream = service.UnzipGzippedStream(null!);
         Assert.NotNull(resultStream);
         Assert.Equal(Stream.Null, resultStream);
@@ -67,7 +71,8 @@ public class UnitTestDownloadService
 
         // Create an instance of the DownloadService to call the ParseCsvStream method
         var mockLogger = new Mock<ILogger<DownloadService>>();
-        var service = new DownloadService(new HttpClient(), mockLogger.Object);
+        var settings = Options.Create(new MetarSettings());
+        var service = new DownloadService(new HttpClient(), mockLogger.Object, settings);
         var observations = service.ParseCsvStream(csvStream);
         Assert.NotNull(observations);
         Assert.NotEmpty(observations);
@@ -79,7 +84,8 @@ public class UnitTestDownloadService
     {
         // Verify that passing a null stream to ParseCsvStream returns an empty list
         var mockLogger = new Mock<ILogger<DownloadService>>();
-        var service = new DownloadService(new HttpClient(), mockLogger.Object);
+        var settings = Options.Create(new MetarSettings());
+        var service = new DownloadService(new HttpClient(), mockLogger.Object, settings);
         var result = service.ParseCsvStream(null!);
         Assert.NotNull(result);
         Assert.Empty(result);
@@ -96,7 +102,8 @@ public class UnitTestDownloadService
 
         // Create an instance of the DownloadService to call the ParseCsvStream method
         var mockLogger = new Mock<ILogger<DownloadService>>();
-        var service = new DownloadService(new HttpClient(), mockLogger.Object);
+        var settings = Options.Create(new MetarSettings());
+        var service = new DownloadService(new HttpClient(), mockLogger.Object, settings);
         var result = service.ParseCsvStream(csvStream);
         Assert.NotNull(result);
         Assert.Empty(result);
@@ -113,7 +120,8 @@ public class UnitTestDownloadService
 
         // Create an instance of the DownloadService to call the ParseCsvStream method
         var mockLogger = new Mock<ILogger<DownloadService>>();
-        var service = new DownloadService(new HttpClient(), mockLogger.Object);
+        var settings = Options.Create(new MetarSettings());
+        var service = new DownloadService(new HttpClient(), mockLogger.Object, settings);
         var result = service.ParseCsvStream(csvStream);
         Assert.NotNull(result);
         Assert.Empty(result);
@@ -127,7 +135,8 @@ public class UnitTestDownloadService
         // This test will call the ExtractLatestObservationsAsync method and verify that it returns a non-empty list of Observation objects
         var httpClient = new HttpClient();
         var mockLogger = new Mock<ILogger<DownloadService>>();
-        var service = new DownloadService(httpClient, mockLogger.Object);
+        var settings = Options.Create(new MetarSettings());
+        var service = new DownloadService(httpClient, mockLogger.Object, settings);
         var observations = await service.FetchLatestObservationsAsync();
         Assert.NotNull(observations);
         Assert.NotEmpty(observations);

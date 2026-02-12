@@ -6,18 +6,21 @@
 
 using CsvHelper;
 using CsvHelper.Configuration;
+using Microsoft.Extensions.Options;
 using System.Globalization;
 
 public class DownloadService : IDownloadService
 {
-    private const string Url = "https://aviationweather.gov/data/cache/metars.cache.csv.gz";
     private readonly HttpClient _httpClient;
     private readonly ILogger<DownloadService> _logger;
+    private readonly string _url;
 
-    public DownloadService(HttpClient httpClient, ILogger<DownloadService> logger)
+    public DownloadService(HttpClient httpClient, ILogger<DownloadService> logger, IOptions<MetarSettings> settings)
     {
         _httpClient = httpClient;
         _logger = logger;
+        _url = settings.Value.Url;
+
     }
 
     // Method to download METAR data for a given station ID
@@ -27,7 +30,7 @@ public class DownloadService : IDownloadService
         HttpResponseMessage response;
         try
         {
-            response = await _httpClient.GetAsync(Url);
+            response = await _httpClient.GetAsync(_url);
             response.EnsureSuccessStatusCode(); // Ensure the request was successful
         }
         catch (HttpRequestException ex)
