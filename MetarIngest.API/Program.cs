@@ -1,12 +1,10 @@
-/*********************************************************************************
-* METAR Ingest API
-* This is the main entry point for the METAR Ingest API application. It sets up the web host, configures services, and defines the HTTP request pipeline.
-* The application uses Entity Framework Core for database access and is configured to use either an in-memory database (for testing) or a SQLite database (for production) based on configuration settings. 
-* It uses a Minimal API with a Swagger UI for testing and documentation.
-*********************************************************************************/
-
 using Microsoft.EntityFrameworkCore;
 
+/// <summary>
+/// <c> METAR Ingest API </c>.
+/// The application uses Entity Framework Core for database access and is configured to use either an in-memory database or a SQLite database based on configuration settings. 
+/// It uses a Minimal API with a Swagger UI for testing and documentation.
+/// </summary>
 public class Program
 {
     public static void Main(string[] args)
@@ -28,22 +26,18 @@ public class Program
                 {
                     var configuration = context.Configuration;
 
-                    // Add services to the container.
-                    var useInMemoryDatabase = configuration.GetValue<bool>("UseInMemoryDatabase");
-
                     // Configure the database context to use either an in-memory database or SQLite based on configuration
                     // In-memory database is used for testing and development, while SQLite is used for production
+                    var useInMemoryDatabase = configuration.GetValue<bool>("UseInMemoryDatabase");
                     if (useInMemoryDatabase)
                     {
                         var databaseName = configuration.GetValue<string>("InMemoryDatabaseName") ?? "MetarIngestDatabase";
-                        services.AddDbContext<AppDbContext>(options =>
-                            options.UseInMemoryDatabase(databaseName));
+                        services.AddDbContext<AppDbContext>(options => options.UseInMemoryDatabase(databaseName));
                     }
                     else
                     {
                         var connectionString = configuration.GetValue<string>("ConnectionString") ?? "Data Source=metaringest.db";
-                        services.AddDbContext<AppDbContext>(options =>
-                            options.UseSqlite(connectionString));
+                        services.AddDbContext<AppDbContext>(options => options.UseSqlite(connectionString));
                     }
 
                     // Configure settings
@@ -82,7 +76,6 @@ public class Program
                 webBuilder.Configure((context, app) =>
                 {
                     var configuration = context.Configuration;
-                    var env = context.HostingEnvironment;
                     var useInMemoryDatabase = configuration.GetValue<bool>("UseInMemoryDatabase");
 
                     // Apply database migrations at startup (only for SQLite)
@@ -91,19 +84,14 @@ public class Program
                         using (var scope = app.ApplicationServices.CreateScope())
                         {
                             var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                            dbContext.Database.Migrate(); // Apply any pending migrations
+                            dbContext.Database.Migrate();
                         }
                     }
 
-                    // Configure the HTTP request pipeline.
-                    if (env.IsDevelopment())
-                    {
-                        app.UseSwagger(); // Enable Swagger middleware in development environment
-                        app.UseSwaggerUI(); // Enable Swagger UI middleware in development environment
-                    }
-
-                    app.UseHttpsRedirection(); // Redirect HTTP requests to HTTPS
-
+                    // Configure the HTTP request pipeline and enable Swagger UI
+                    app.UseSwagger();
+                    app.UseSwaggerUI();
+                    app.UseHttpsRedirection();
                     app.UseRouting();
 
                     app.UseEndpoints(endpoints =>
@@ -111,11 +99,13 @@ public class Program
                         // Add a get method to retrieve the latest METAR observation for a given station
                         endpoints.MapGet("/observations/{stationId}", async (string stationId, AppDbContext dbContext) =>
                         {
+                            // Retrieve the latest observation for the specified station ID
                             var observation = await dbContext.Observations
                                 .Where(o => o.StationId == stationId)
                                 .OrderByDescending(o => o.ObservationTime)
-                                .FirstOrDefaultAsync(); // Retrieve the latest observation for the specified station ID
+                                .FirstOrDefaultAsync(); 
 
+                            // Return 404 if no observation is found for the specified station ID
                             if (observation == null)
                             {
                                 return Results.NotFound();
@@ -127,11 +117,15 @@ public class Program
                         // Add a get method to retrieve the average temperature for a given station over the last 24 hours
                         endpoints.MapGet("/observations/{stationId}/average-temperature", async (string stationId, AppDbContext dbContext) =>
                         {
-                            var cutoffTime = DateTime.UtcNow.AddHours(-24); // Calculate the cutoff time for the last 24 hours
+                            // Calculate the cutoff time for the last 24 hours
+                            var cutoffTime = DateTime.UtcNow.AddHours(-24); 
+
+                            // Calculate the average temperature for the specified station ID over the last 24 hours
                             var averageTemperature = await dbContext.Observations
                                 .Where(o => o.StationId == stationId && o.ObservationTime >= cutoffTime)
-                                .AverageAsync(o => (double?)o.Temperature); // Calculate the average temperature for the specified station ID over the last 24 hours
+                                .AverageAsync(o => (double?)o.Temperature); 
 
+                            // Return 404 if no observations are found for the specified station ID in the last 24 hours
                             if (averageTemperature == null)
                             {
                                 return Results.NotFound();

@@ -1,8 +1,4 @@
-/*********************************************************************************
-* METAR Download Service
-* This class is responsible for downloading METAR observations from the external source. 
-* The observations are in a GZipped CSV format.
-*********************************************************************************/
+/// <inheritdoc cref="IDownloadService" />
 
 using CsvHelper;
 using CsvHelper.Configuration;
@@ -20,10 +16,8 @@ public class DownloadService : IDownloadService
         _httpClient = httpClient;
         _logger = logger;
         _url = settings.Value.Url;
-
     }
 
-    // Method to download METAR data for a given station ID
     public async Task<Stream> DownloadMetarsGZipAsync()
     {
         // Download the GZipped file
@@ -31,13 +25,13 @@ public class DownloadService : IDownloadService
         try
         {
             response = await _httpClient.GetAsync(_url);
-            response.EnsureSuccessStatusCode(); // Ensure the request was successful
+            response.EnsureSuccessStatusCode(); 
         }
         catch (HttpRequestException ex)
         {
             // Handle HTTP request errors (e.g., network issues, non-success status codes)
             _logger.LogError(ex, "Error downloading METAR data");
-            return Stream.Null; // Return an empty stream if the download fails
+            return Stream.Null; 
         }
 
         // Read the response content as a stream
@@ -48,21 +42,18 @@ public class DownloadService : IDownloadService
         }
         catch (Exception ex)
         {
-            // Handle errors while reading the response stream
             _logger.LogError(ex, "Error reading METAR data stream");
-            return Stream.Null; // Return an empty stream if reading fails
+            return Stream.Null; 
         }
         return stream;
     }
-
-    // Method to unzip the GZipped file 
     public Stream UnzipGzippedStream(Stream gzippedStream)
     {
         // Check that the input stream is not null
         if (gzippedStream == null)
         {
             _logger.LogWarning("GZipped stream is null");
-            return Stream.Null; // Return an empty stream if the input stream is null
+            return Stream.Null; 
         }
 
         // Create a GZipStream to decompress the data
@@ -73,22 +64,20 @@ public class DownloadService : IDownloadService
         }
         catch (Exception ex)
         {
-            // Handle errors during decompression
             _logger.LogError(ex, "Error decompressing METAR data");
-            return Stream.Null; // Return an empty stream if decompression fails
+            return Stream.Null;
         }
 
         return unzippedStream;
     }
 
-    // Method to parse the CSV data and extract observations
     public List<Observation> ParseCsvStream(Stream csvStream)
     {
         // Check that the input stream is not null
         if (csvStream == null)
         {
             _logger.LogWarning("CSV stream is null");
-            return new List<Observation>(); // Return an empty list if the input stream is null
+            return new List<Observation>(); 
         }
 
         var observations = new List<Observation>();
@@ -122,7 +111,7 @@ public class DownloadService : IDownloadService
                     continue; // Skip this record if any required field is missing
                 }
 
-                // Convert the observation time to UTC
+                // Convert the observation time to UTC (METAR time is always Zulu)
                 if (observationTime.Kind == DateTimeKind.Unspecified)
                 {
                     observationTime = DateTime.SpecifyKind(observationTime, DateTimeKind.Utc);
@@ -132,6 +121,7 @@ public class DownloadService : IDownloadService
                     observationTime = observationTime.ToUniversalTime();
                 }
 
+                // Create an Observation object and add it to the list
                 var observation = CreateObservation(stationId, observationTime, temperature, rawMetar);
                 if (observation != null)
                 {
@@ -141,14 +131,12 @@ public class DownloadService : IDownloadService
         }
         catch (Exception ex)
         {
-            // Handle errors during CSV parsing
             _logger.LogError(ex, "Error parsing METAR CSV data");
-            return new List<Observation>(); // Return an empty list if parsing fails
+            return new List<Observation>(); 
         }
         return observations;
     }
 
-    // Method to create an Observation object from the CSV fields
     public Observation? CreateObservation(string? stationId, DateTime observationTime, double temperature, string? rawMetar)
     {
         // Validate the input parameters before creating the Observation object
@@ -171,15 +159,13 @@ public class DownloadService : IDownloadService
         }
         catch (Exception ex)
         {
-            // Handle errors during Observation object creation
             _logger.LogError(ex, "Error creating Observation object");
-            return null; // Return null if there was an error creating the Observation
+            return null;
         }
         return observation;
     }
 
-    // Method to extract all the latest observations from the URL. It downloads, unzips, parses the CSV data, and returns a list of Observation objects.
-    public async Task<List<Observation>> FetchLatestObservationsAsync()
+     public async Task<List<Observation>> FetchLatestObservationsAsync()
     {
         // Download the GZipped METAR data
         var gzippedStream = await DownloadMetarsGZipAsync();

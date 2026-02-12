@@ -1,8 +1,6 @@
 namespace MetarIngest.API.Tests;
 
-using Moq;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 
 public class UnitTestIngestionService
 {
@@ -11,20 +9,10 @@ public class UnitTestIngestionService
     public async Task IngestObservationAsync_AddsObservationToDatabase()
     {
         // Create an in-memory database context for testing
-        var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseInMemoryDatabase(databaseName: "TestDatabase")
-            .Options;
-        var dbContext = new AppDbContext(options);
-        
-        // Create a mock DownloadService (not used in this test, but required for the constructor)
-        var mockDownloadService = new Mock<IDownloadService>();
-        var mockLogger = new Mock<ILogger<IngestionService>>();
-        
-        // Create an instance of the IngestionService with the in-memory database context and mock download service
-        var ingestionService = new IngestionService(dbContext, mockDownloadService.Object, mockLogger.Object);
+        var (ingestionService, dbContext, _) = TestHelper.CreateIngestionService();
         
         // Create a test observation to ingest
-        var observation = new Observation("TEST", DateTime.UtcNow, 20.5f, "TEST METAR");
+        var observation = TestHelper.CreateTestObservation();
         
         // Call the IngestObservationAsync method to add the observation to the database
         await ingestionService.IngestObservationAsync(observation);
@@ -43,17 +31,7 @@ public class UnitTestIngestionService
     public async Task IngestObservationAsync_ThrowsExceptionForNullObservation()
     {
         // Create an in-memory database context for testing
-        var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseInMemoryDatabase(databaseName: "TestDatabase")
-            .Options;
-        var dbContext = new AppDbContext(options);
-        
-        // Create a mock DownloadService (not used in this test, but required for the constructor)
-        var mockDownloadService = new Mock<IDownloadService>();
-        var mockLogger = new Mock<ILogger<IngestionService>>();
-        
-        // Create an instance of the IngestionService with the in-memory database context and mock download service
-        var ingestionService = new IngestionService(dbContext, mockDownloadService.Object, mockLogger.Object);
+        var (ingestionService, _, _) = TestHelper.CreateIngestionService();
         
         // Verify that calling IngestObservationAsync with a null observation throws an ArgumentNullException
         await Assert.ThrowsAsync<ArgumentNullException>(() => ingestionService.IngestObservationAsync(null!));
@@ -64,21 +42,14 @@ public class UnitTestIngestionService
     public async Task IngestLatestObservationsAsync_DoesNotAddDuplicateObservationsInSameBatch()
     {
         // Create an in-memory database context for testing
-        var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseInMemoryDatabase(databaseName: "TestDatabase1")
-            .Options;
-        var dbContext = new AppDbContext(options);
+        var (ingestionService, dbContext, mockDownloadService) = TestHelper.CreateIngestionService(
+            TestHelper.CreateInMemoryDbContext("TestDatabase1"));
         
         // Create a mock DownloadService that returns a list of observations, including a duplicate
-        var mockDownloadService = new Mock<IDownloadService>();
         var time = DateTime.UtcNow;
-        var observation1 = new Observation("TEST", time, 20.5f, "TEST METAR");
-        var observation2 = new Observation("TEST", time, 20.5f, "TEST METAR"); // Duplicate observation
+        var observation1 = TestHelper.CreateTestObservation("TEST", time, 20.5f, "TEST METAR");
+        var observation2 = TestHelper.CreateTestObservation("TEST", time, 20.5f, "TEST METAR"); // Duplicate observation
         mockDownloadService.Setup(s => s.FetchLatestObservationsAsync()).ReturnsAsync(new List<Observation> { observation1, observation2 });
-        
-        // Create an instance of the IngestionService with the in-memory database context and mock download service
-        var mockLogger = new Mock<ILogger<IngestionService>>();
-        var ingestionService = new IngestionService(dbContext, mockDownloadService.Object, mockLogger.Object);
         
         // Call the IngestLatestObservationsAsync method to add the observations to the database
         await ingestionService.IngestLatestObservationsAsync();
@@ -97,20 +68,13 @@ public class UnitTestIngestionService
     public async Task IngestLatestObservationsAsync_DoesNotAddExistingObservations()
     {
         // Create an in-memory database context for testing
-        var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseInMemoryDatabase(databaseName: "TestDatabase2")
-            .Options;
-        var dbContext = new AppDbContext(options);
+        var (ingestionService, dbContext, mockDownloadService) = TestHelper.CreateIngestionService(
+            TestHelper.CreateInMemoryDbContext("TestDatabase2"));
         
         // Create a mock DownloadService that returns a list of observations
-        var mockDownloadService = new Mock<IDownloadService>();
         var time = DateTime.UtcNow;
-        var observation1 = new Observation("TEST", time, 20.5f, "TEST METAR");
+        var observation1 = TestHelper.CreateTestObservation("TEST", time, 20.5f, "TEST METAR");
         mockDownloadService.Setup(s => s.FetchLatestObservationsAsync()).ReturnsAsync(new List<Observation> { observation1 });
-        
-        // Create an instance of the IngestionService with the in-memory database context and mock download service
-        var mockLogger = new Mock<ILogger<IngestionService>>();
-        var ingestionService = new IngestionService(dbContext, mockDownloadService.Object, mockLogger.Object);
         
         // Add the observation to the database context and save changes to simulate an existing observation
         dbContext.Observations.Add(observation1);

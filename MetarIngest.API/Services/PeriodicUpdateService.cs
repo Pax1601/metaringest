@@ -1,17 +1,21 @@
-/*********************************************************************************
-* METAR Periodic Update Service
-* This class is responsible for periodically updating the database with the latest METAR observations.
-* The service is a background service.
-*********************************************************************************/
-
 using Microsoft.Extensions.Options;
 
+/// <summary>
+/// This class is responsible for periodically updating the database with the latest METAR observations.
+/// The service is a background service.
+/// </summary>
 public class PeriodicUpdateService: BackgroundService
 {
     private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly ILogger<PeriodicUpdateService> _logger;
     private readonly TimeSpan _updateInterval;
 
+    /// <summary>
+    /// Constructor for the PeriodicUpdateService.
+    /// </summary>
+    /// <param name="serviceScopeFactory">The service scope factory for creating service scopes.</param>
+    /// <param name="logger">The logger for logging information and errors.</param>
+    /// <param name="settings">The settings for configuring the update interval.</param>
     public PeriodicUpdateService(IServiceScopeFactory serviceScopeFactory, ILogger<PeriodicUpdateService> logger, IOptions<MetarSettings> settings)
     {
         _serviceScopeFactory = serviceScopeFactory;
@@ -21,6 +25,11 @@ public class PeriodicUpdateService: BackgroundService
         _logger.LogInformation("PeriodicUpdateService initialized with update interval of {Minutes} minutes", _updateInterval.TotalMinutes);
     }
 
+    /// <summary>
+    /// This method is called when the service is started and runs a loop in the background.
+    /// </summary>
+    /// <param name="stoppingToken">A token that can be used to cancel the background task.</param>
+    /// <returns>A task that represents the background operation.</returns>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
@@ -36,7 +45,6 @@ public class PeriodicUpdateService: BackgroundService
             }
             catch (Exception ex)
             {
-                // Log any exceptions that occur during the update process
                 _logger.LogError(ex, "Error during periodic update");
             }
 

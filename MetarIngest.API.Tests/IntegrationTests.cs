@@ -33,15 +33,7 @@ public class IntegrationTests
     [Fact]
     public async Task IngestRealMetarData_ShouldSucceed()
     {
-        var databaseName = $"TestDatabase_{Guid.NewGuid()}";
-        
-        // Create a test-specific factory with configuration set BEFORE Program runs
-        var factory = new TestWebApplicationFactory(new Dictionary<string, string?>
-        {
-            ["UseInMemoryDatabase"] = "true",
-            ["InMemoryDatabaseName"] = databaseName,
-            ["EnablePeriodicUpdates"] = "false"
-        });
+        var factory = TestHelper.CreateTestWebApplicationFactoryWithInMemoryDb();
 
         using var scope = factory.Services.CreateScope();
         var ingestionService = scope.ServiceProvider.GetRequiredService<IIngestionService>();
@@ -69,8 +61,7 @@ public class IntegrationTests
         finally
         {
             // Cleanup: Delete the database after the test
-            await dbContext.Database.EnsureDeletedAsync();
-            factory.Dispose();
+            await TestHelper.CleanupIntegrationTestAsync(factory);
         }
     }
 
@@ -78,13 +69,10 @@ public class IntegrationTests
     [Fact]
     public async Task IngestRealMetarData_ShouldFail()
     {
-        var databaseName = $"TestDatabase_{Guid.NewGuid()}";
-        
-        // Create a test-specific factory with configuration set BEFORE Program runs
-        var factory = new TestWebApplicationFactory(new Dictionary<string, string?>
+        var factory = TestHelper.CreateTestWebApplicationFactory(new Dictionary<string, string?>
         {
             ["UseInMemoryDatabase"] = "true",
-            ["InMemoryDatabaseName"] = databaseName,
+            ["InMemoryDatabaseName"] = $"TestDatabase_{Guid.NewGuid()}",
             ["DownloadUrl"] = "https://invalid-url-for-testing.com/metars.cache.csv.gz",
             ["EnablePeriodicUpdates"] = "false"
         });
@@ -109,8 +97,7 @@ public class IntegrationTests
         finally
         {
             // Cleanup: Delete the database after the test
-            await dbContext.Database.EnsureDeletedAsync();
-            factory.Dispose();
+            await TestHelper.CleanupIntegrationTestAsync(factory);
         }
     }
 
@@ -118,15 +105,7 @@ public class IntegrationTests
     [Fact]
     public async Task FetchLatestObservations_ShouldReturnData()
     {
-        var databaseName = $"TestDatabase_{Guid.NewGuid()}";
-        
-        // Create a test-specific factory with configuration set BEFORE Program runs
-        var factory = new TestWebApplicationFactory(new Dictionary<string, string?>
-        {
-            ["UseInMemoryDatabase"] = "true",
-            ["InMemoryDatabaseName"] = databaseName,
-            ["EnablePeriodicUpdates"] = "false"
-        });
+        var factory = TestHelper.CreateTestWebApplicationFactoryWithInMemoryDb();
 
         using var client = factory.CreateClient();
 
@@ -152,10 +131,7 @@ public class IntegrationTests
         finally
         {
             // Cleanup: Delete the database after the test
-            using var scope = factory.Services.CreateScope();
-            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            await dbContext.Database.EnsureDeletedAsync();
-            factory.Dispose();
+            await TestHelper.CleanupIntegrationTestAsync(factory);
         }
     }
 
@@ -163,15 +139,7 @@ public class IntegrationTests
     [Fact]
     public async Task FetchLatestObservations_ShouldReturnNotFoundForNonExistentStation()
     {
-        var databaseName = $"TestDatabase_{Guid.NewGuid()}";
-        
-        // Create a test-specific factory with configuration set BEFORE Program runs
-        var factory = new TestWebApplicationFactory(new Dictionary<string, string?>
-        {
-            ["UseInMemoryDatabase"] = "true",
-            ["InMemoryDatabaseName"] = databaseName,
-            ["EnablePeriodicUpdates"] = "false"
-        });
+        var factory = TestHelper.CreateTestWebApplicationFactoryWithInMemoryDb();
 
         using var client = factory.CreateClient();
 
@@ -193,10 +161,7 @@ public class IntegrationTests
         finally
         {
             // Cleanup: Delete the database after the test
-            using var scope = factory.Services.CreateScope();
-            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            await dbContext.Database.EnsureDeletedAsync();
-            factory.Dispose();
+            await TestHelper.CleanupIntegrationTestAsync(factory);
         }
     }
 
@@ -204,15 +169,7 @@ public class IntegrationTests
     [Fact]
     public async Task FetchLatestObservations_ShouldReturnData_WithSQLite()
     {
-        var databaseName = $"TestDatabase_{Guid.NewGuid()}.db";
-        
-        // Create a test-specific factory with configuration set BEFORE Program runs
-        var factory = new TestWebApplicationFactory(new Dictionary<string, string?>
-        {
-            ["UseInMemoryDatabase"] = "false",
-            ["ConnectionString"] = $"Data Source={databaseName}",
-            ["EnablePeriodicUpdates"] = "true"
-        });
+        var (factory, databaseFileName) = TestHelper.CreateTestWebApplicationFactoryWithSQLite();
 
         using var client = factory.CreateClient();
 
@@ -235,21 +192,8 @@ public class IntegrationTests
         }
         finally
         {
-            // Stop the application and close all connections
-            factory.Dispose();
-            
-            // Clear all SQLite connection pools to release file locks
-            SqliteConnection.ClearAllPools();
-            
-            // Force garbage collection to release any lingering resources
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            
-            // Delete the SQLite file after all connections are closed
-            if (File.Exists(databaseName))
-            {
-                File.Delete(databaseName);
-            }
+            // Cleanup: Delete the database after the test
+            await TestHelper.CleanupIntegrationTestAsync(factory, databaseFileName);
         }
     }
 }

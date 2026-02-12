@@ -1,9 +1,4 @@
-/*********************************************************************************
-* METAR Ingestion Service
-* This class is responsible for ingesting METAR observations into the database. 
-* It provides a method to add a new observation to the database context and save the changes.
-* It can be executed as a background service to automatically ingest METAR data at regular intervals or can be called from a controller to ingest data on demand.
-*********************************************************************************/
+/// <inheritdoc cref="IIngestionService" />
 
 public class IngestionService : IIngestionService       
 {
@@ -11,6 +6,12 @@ public class IngestionService : IIngestionService
     private readonly IDownloadService _DownloadService;
     private readonly ILogger<IngestionService> _logger;
 
+    /// <summary>
+    /// Constructor for the IngestionService.
+    /// </summary>
+    /// <param name="dbContext">The database context for accessing the database.</param>
+    /// <param name="DownloadService">The download service for fetching the latest observations.</param>
+    /// <param name="logger">The logger for logging information and errors.</param>
     public IngestionService(AppDbContext dbContext, IDownloadService DownloadService, ILogger<IngestionService> logger)
     {
         _dbContext = dbContext;
@@ -18,7 +19,6 @@ public class IngestionService : IIngestionService
         _logger = logger;
     }
 
-    // Method to ingest a new observation into the database
     public async Task IngestObservationAsync(Observation observation)
     {
         // Verify that the observation is not null
@@ -29,23 +29,18 @@ public class IngestionService : IIngestionService
             throw new ArgumentNullException(nameof(observation), "Observation cannot be null.");
         }
 
-        // Add the new observation to the database context
         _dbContext.Observations.Add(observation);
-
-        // Save changes to the database
         await _dbContext.SaveChangesAsync();
     }
 
-    // Download and ingest the latest observations from the external source
     public async Task IngestLatestObservationsAsync()
     {
         // Extract the latest observations from the external source
         var observations = await _DownloadService.FetchLatestObservationsAsync();
         if (observations == null)
         {
-            // We throw an exception if the download service returns null. The download service should never return null, 
-            // so this indicates a programming error or an unexpected condition. If the download service fails to fetch the latest observations, 
-            // it returns an empty list.
+            // We throw an exception if the download service returns null. The download service should never return null. 
+            // If the download service fails to fetch the latest observations, it returns an empty list.
             throw new InvalidOperationException("Failed to fetch latest observations.");
         }
 
@@ -65,16 +60,11 @@ public class IngestionService : IIngestionService
         var newObservations = uniqueObservations.Where(o => 
         !_dbContext.Observations.Any(existing => existing.StationId == o.StationId && existing.ObservationTime == o.ObservationTime)).ToList();
 
-        // Log the number of new observations that will be added for debugging purposes
         _logger.LogInformation("{Count} new observations will be added to the database", newObservations.Count);
-
-        // Add the new observations to the database context. If an entry exists with the same station ID and observation time, skip it.
         _dbContext.Observations.AddRange(newObservations);
-
-        // Save changes to the database
         await _dbContext.SaveChangesAsync();
 
-        // Log the number of new observations added for debugging purposes
+        // Log the number of new observations added
         var newCount = _dbContext.Observations.Count() - existingCount;
         _logger.LogInformation("Added {Count} new observations to the database", newCount);
     }
