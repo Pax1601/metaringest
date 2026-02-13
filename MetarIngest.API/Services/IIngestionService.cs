@@ -5,6 +5,12 @@
 public interface IIngestionService
 {
     /// <summary>
+    /// Waits for the database to be ready before proceeding with ingestion. This method will repeatedly check if the database can connect, and will wait until it is ready or until a timeout occurs.
+    /// </summary> <param name="cancellationToken">A token that can be used to cancel the waiting operation.</param>
+    /// <returns>A task that represents the asynchronous operation.</returns>
+    Task WaitForDatabaseReadyAsync(CancellationToken cancellationToken);
+
+    /// <summary>
     /// Ingests a single METAR observation into the database. It adds the observation to the database context and saves changes to the database. 
     /// If the observation is null, it throws an ArgumentNullException, as we cannot ingest a null observation into the database. The download service should never return null observation.
     /// </summary>

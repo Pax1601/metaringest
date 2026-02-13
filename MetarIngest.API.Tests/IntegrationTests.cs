@@ -170,14 +170,36 @@ public class IntegrationTests
     public async Task FetchLatestObservations_ShouldReturnData_WithSQLite()
     {
         var (factory, databaseFileName) = TestHelper.CreateTestWebApplicationFactoryWithSQLite();
-
         using var client = factory.CreateClient();
 
         try
         {
-            // Wait for periodic updates to populate the database
-            await Task.Delay(2000);
+            // Wait until the application is ready and the database is initialized
+            using var scope = factory.Services.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
+            // Wait for the database to be initialized before attempting to fetch observations
+            var ingestionService = scope.ServiceProvider.GetRequiredService<IIngestionService>();
+            await ingestionService.WaitForDatabaseReadyAsync(CancellationToken.None);
+
+            // Wait for the ingestion service to ingest some data into the database 
+            var maxWaitTime = TimeSpan.FromSeconds(30);
+            var startTime = DateTime.UtcNow;
+            while (true)
+            {
+                var observationsCount = await dbContext.Observations.CountAsync();
+                if (observationsCount > 0)
+                {
+                    break; // Data has been ingested, we can proceed with fetching observations
+                }
+
+                if (DateTime.UtcNow - startTime > maxWaitTime)
+                {
+                    throw new TimeoutException("Timed out waiting for data to be ingested into the database.");
+                }
+                await Task.Delay(1000); // Wait for 1 second before checking again
+            }
+            
             // Fetch the latest observation for a known station ID (Milan Linate Airport - LIML)
             var response = await client.GetAsync("/observations/LIML");
             response.EnsureSuccessStatusCode();

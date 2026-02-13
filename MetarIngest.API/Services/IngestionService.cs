@@ -1,6 +1,8 @@
+using Microsoft.EntityFrameworkCore;
+
 /// <inheritdoc cref="IIngestionService" />
 
-public class IngestionService : IIngestionService       
+public class IngestionService : IIngestionService
 {
     private readonly AppDbContext _dbContext;
     private readonly IDownloadService _DownloadService;
@@ -17,6 +19,41 @@ public class IngestionService : IIngestionService
         _dbContext = dbContext;
         _DownloadService = DownloadService;
         _logger = logger;
+    }
+
+    public async Task WaitForDatabaseReadyAsync(CancellationToken cancellationToken)
+    {
+        var maxWaitTime = TimeSpan.FromSeconds(30);
+        var startTime = DateTime.UtcNow;
+
+        // Wait for the database to be ready and the table has beem created
+        while (true)
+        {
+            try
+            {
+                // Check if the "Observations" table exists 
+                await _dbContext.Observations.OrderBy(o => o.ObservationTime).FirstOrDefaultAsync(cancellationToken);
+                break; 
+            }
+            catch (Exception)
+            {
+                // If the database is not ready yet, it will throw an exception. Just ignore it and keep waiting.
+            }
+
+            await Task.Delay(1000, cancellationToken); // Wait for 1 second before checking again
+            if (DateTime.UtcNow - startTime > maxWaitTime)
+            {
+                _logger.LogError("Timed out waiting for the database to be ready after {Seconds} seconds.", maxWaitTime.TotalSeconds);
+                throw new TimeoutException("Timed out waiting for the database to be ready.");
+            }
+
+            // Exit the loop if cancellation is requested
+            if (cancellationToken.IsCancellationRequested)
+            {
+                _logger.LogInformation("Waiting for database readiness was cancelled.");
+                throw new OperationCanceledException(cancellationToken);
+            }
+        }
     }
 
     public async Task IngestObservationAsync(Observation observation)
@@ -57,7 +94,7 @@ public class IngestionService : IIngestionService
             .ToList();
 
         // Filter out observations that already exist in the database to avoid duplicates. We check for existing entries with the same station ID and observation time.
-        var newObservations = uniqueObservations.Where(o => 
+        var newObservations = uniqueObservations.Where(o =>
         !_dbContext.Observations.Any(existing => existing.StationId == o.StationId && existing.ObservationTime == o.ObservationTime)).ToList();
 
         _logger.LogInformation("{Count} new observations will be added to the database", newObservations.Count);

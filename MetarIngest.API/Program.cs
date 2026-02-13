@@ -77,6 +77,13 @@ public class Program
                 {
                     var configuration = context.Configuration;
                     var useInMemoryDatabase = configuration.GetValue<bool>("UseInMemoryDatabase");
+                    var aspNetCoreUrls = configuration["ASPNETCORE_URLS"];
+                    var hasHttpsUrl = !string.IsNullOrWhiteSpace(aspNetCoreUrls)
+                        && aspNetCoreUrls.Split(';', StringSplitOptions.RemoveEmptyEntries)
+                            .Any(url => url.TrimStart().StartsWith("https://", StringComparison.OrdinalIgnoreCase));
+                    var httpsPort = configuration.GetValue<int?>("HTTPS_PORT")
+                        ?? configuration.GetValue<int?>("ASPNETCORE_HTTPS_PORT")
+                        ?? configuration.GetValue<int?>("HttpsPort");
 
                     // Apply database migrations at startup (only for SQLite)
                     if (!useInMemoryDatabase)
@@ -91,7 +98,10 @@ public class Program
                     // Configure the HTTP request pipeline and enable Swagger UI
                     app.UseSwagger();
                     app.UseSwaggerUI();
-                    app.UseHttpsRedirection();
+                    if (hasHttpsUrl || httpsPort.HasValue)
+                    {
+                        app.UseHttpsRedirection();
+                    }
                     app.UseRouting();
 
                     app.UseEndpoints(endpoints =>

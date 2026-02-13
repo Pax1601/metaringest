@@ -49,7 +49,7 @@ public class UnitTestIngestionService
         var time = DateTime.UtcNow;
         var observation1 = TestHelper.CreateTestObservation("TEST", time, 20.5f, "TEST METAR");
         var observation2 = TestHelper.CreateTestObservation("TEST", time, 20.5f, "TEST METAR"); // Duplicate observation
-        mockDownloadService.Setup(s => s.FetchLatestObservationsAsync()).ReturnsAsync(new List<Observation> { observation1, observation2 });
+        mockDownloadService.Setup(s => s.FetchLatestObservationsAsync()).Returns(Task.FromResult(new List<Observation> { observation1, observation2 }));
         
         // Call the IngestLatestObservationsAsync method to add the observations to the database
         await ingestionService.IngestLatestObservationsAsync();
@@ -74,7 +74,7 @@ public class UnitTestIngestionService
         // Create a mock DownloadService that returns a list of observations
         var time = DateTime.UtcNow;
         var observation1 = TestHelper.CreateTestObservation("TEST", time, 20.5f, "TEST METAR");
-        mockDownloadService.Setup(s => s.FetchLatestObservationsAsync()).ReturnsAsync(new List<Observation> { observation1 });
+        mockDownloadService.Setup(s => s.FetchLatestObservationsAsync()).Returns(Task.FromResult(new List<Observation> { observation1 }));
         
         // Add the observation to the database context and save changes to simulate an existing observation
         dbContext.Observations.Add(observation1);

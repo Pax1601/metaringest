@@ -32,24 +32,46 @@ public class PeriodicUpdateService: BackgroundService
     /// <returns>A task that represents the background operation.</returns>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // Wait for a short delay before starting the first update to allow the application to finish starting up and the database to be ready
+        // We will also wait for the database to be ready before attempting to ingest observations, but this avoids unnecessary attempts and related exceptions, which are ugly :)
+        await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
+
         while (!stoppingToken.IsCancellationRequested)
         {
+            // TODO: Is there a better approach to validate the database is ready before starting the periodic updates? 
+            // Using exceptions is not very elegant.
             try
             {
                 // Ingest the latest observations into the database
                 using (var scope = _serviceScopeFactory.CreateScope())
                 {
                     var ingestionService = scope.ServiceProvider.GetRequiredService<IIngestionService>();
+                    // Wait for the database to be ready before attempting to ingest observations
+                    await ingestionService.WaitForDatabaseReadyAsync(stoppingToken);
+                    // Ingest the latest observations into the database
                     await ingestionService.IngestLatestObservationsAsync();
                 }
+
+                _logger.LogInformation("Successfully ingested latest observations. Next update in {Minutes} minutes.", _updateInterval.TotalMinutes);
+
+                // Wait for the specified update interval before the next update
+                await Task.Delay(_updateInterval, stoppingToken);
+            }
+            catch (TimeoutException)
+            {
+                // Exit the loop, if the database is not up after 30 seconds, we have a big problem! :)
+                _logger.LogError("Timed out waiting for the database to be ready.");
+                break; 
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                _logger.LogInformation("Periodic update service is stopping due to cancellation request.");
+                break;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error during periodic update");
             }
-
-            // Wait for the specified update interval before the next update
-            await Task.Delay(_updateInterval, stoppingToken);
         }
     }
 }
