@@ -400,3 +400,5 @@ FodyWeavers.xsd
 
 # Mac files
 .DS_Store
+MetarIngest.API/metaringest.db-shm
+MetarIngest.API/metaringest.db-wal

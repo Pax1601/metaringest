@@ -32,6 +32,11 @@ The application will start and be available at:
 - Swagger UI: `http://localhost:5000/swagger`
 - Swagger UI: `https://localhost:5001/swagger`
 
+## Sample
+
+A simple sample map is available to visualize the available airports and their observations. Visit `http://localhost:5000/index.html` to inspect it.
+Each airport is colored depending on the average temperature in the last 24 hours. Hover on the airport circle to inspect the METAR observation.
+
 ## Configuration
 
 The application can be configured via `appsettings.json`:
