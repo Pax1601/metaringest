@@ -16,7 +16,7 @@ public class PeriodicUpdateService: BackgroundService
     /// <param name="serviceScopeFactory">The service scope factory for creating service scopes.</param>
     /// <param name="logger">The logger for logging information and errors.</param>
     /// <param name="settings">The settings for configuring the update interval.</param>
-    public PeriodicUpdateService(IServiceScopeFactory serviceScopeFactory, ILogger<PeriodicUpdateService> logger, IOptions<MetarSettings> settings)
+    public PeriodicUpdateService(IServiceScopeFactory serviceScopeFactory, ILogger<PeriodicUpdateService> logger, IOptions<MetarAPISettings> settings)
     {
         _serviceScopeFactory = serviceScopeFactory;
         _logger = logger;

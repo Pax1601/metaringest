@@ -1,5 +1,6 @@
 # metaringest
 Exercise on creation of an ASP.NET Core project that periodically ingests aviation weather data from NOAA, and provides two endpoints for querying said data.
+Available data are raw text METAR and temperature, and average temperature over a 24h period.
 
 ## Prerequisites
 
@@ -18,7 +19,7 @@ cd MetarIngest.API
 dotnet run --launch-profile http
 ```
 or
-```
+```bash
 dotnet run --launch-profile https
 ```
 Note that using the https profile may require SSL certificates to be installed.
@@ -26,6 +27,7 @@ Note that using the https profile may require SSL certificates to be installed.
 The application will start and be available at:
 - HTTP: `http://localhost:5000`
 - HTTPS: `https://localhost:5001`
+- Swagger UI: `http://localhost:5000/swagger`
 - Swagger UI: `https://localhost:5001/swagger`
 
 ## Configuration
@@ -58,28 +60,19 @@ The application can be configured via `appsettings.json`:
 dotnet test
 ```
 
-### Running Tests for a Specific Project
-
-```bash
-cd MetarIngest.API.Tests
-dotnet test
-```
-
 ### Running Tests with Coverage
 
 ```bash
 dotnet test --collect:"XPlat Code Coverage" --settings:.runsettings
 ```
 
-The `.runsettings` file configures coverage to only include your code (`MetarIngest.API`) and exclude:
-- Test assemblies
-- Framework code (Microsoft.*, System.*)
-- Database migrations
-- Auto-generated code
+After running tests with coverage you can generate a HTML report. First install the necessary tool with:
 
-### Generating HTML Coverage Reports
+```bash
+dotnet tool install -g dotnet-reportgenerator-globaltool
+```
 
-After running tests with coverage, generate an HTML report:
+then run:
 
 ```bash
 reportgenerator -reports:"MetarIngest.API.Tests\TestResults\**\coverage.cobertura.xml" -targetdir:"coveragereport" -reporttypes:Html
@@ -96,11 +89,6 @@ The solution includes the following test projects:
   - `UnitTestIngestionService.cs`: Tests for data ingestion logic
   - `IntegrationTests.cs`: End-to-end integration tests
 
-### Test Categories
-
-**Unit Tests**: Test individual components in isolation with mocked dependencies
-
-**Integration Tests**: Test the full application stack with real HTTP requests and in-memory database
 
 ## API Endpoints
 
@@ -141,27 +129,4 @@ cd MetarIngest.API
 dotnet ef migrations add MigrationName
 dotnet ef database update
 ```
-
-## Project Structure
-
-```
-metaringest/
-├── MetarIngest.API/           # Main API project
-│   ├── Data/                  # Database context and models
-│   ├── Models/                # Configuration models
-│   ├── Services/              # Business logic services
-│   ├── Migrations/            # EF Core migrations
-│   └── Program.cs             # Application entry point
-└── MetarIngest.API.Tests/     # Test project
-    ├── TestData/              # Test data files
-    └── *Tests.cs              # Test classes
-```
-
-## Troubleshooting
-
-**Database locked errors**: Ensure no other instances of the application are running.
-
-**Port already in use**: Change the port in `launchSettings.json` or set the `ASPNETCORE_URLS` environment variable.
-
-**Tests failing with database conflicts**: Tests use isolated in-memory databases to prevent conflicts.
 

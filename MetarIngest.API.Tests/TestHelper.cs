@@ -20,7 +20,7 @@ public static class TestHelper
     public static DownloadService CreateDownloadService(HttpClient? httpClient = null)
     {
         var mockLogger = new Mock<ILogger<DownloadService>>();
-        var settings = Options.Create(new MetarSettings());
+        var settings = Options.Create(new MetarAPISettings());
         return new DownloadService(httpClient ?? new HttpClient(), mockLogger.Object, settings);
     }
 
@@ -87,48 +87,47 @@ public static class TestHelper
     }
 
     /// <summary>
-    /// Creates a test web application factory with the specified configuration settings.
+    /// Creates a test web application factory with configurable database mode and optional download URL override.
     /// </summary>
-    /// <param name="configuration">Dictionary of configuration key-value pairs.</param>
-    /// <returns>A configured TestWebApplicationFactory instance.</returns>
-    public static TestWebApplicationFactory CreateTestWebApplicationFactory(Dictionary<string, string?> configuration)
+    /// <param name="useInMemoryDatabase">Whether to use in-memory database. When false, SQLite is used.</param>
+    /// <param name="enablePeriodicUpdates">
+    /// Whether to enable periodic updates in the test application.
+    /// If null, defaults to false for in-memory and true for SQLite.
+    /// </param>
+    /// <param name="downloadUrl">Optional override for the default download service URL.</param>
+    /// <returns>A tuple containing the factory and an optional SQLite database file name.</returns>
+    public static (TestWebApplicationFactory factory, string? databaseFileName)
+        CreateTestWebApplicationFactory(
+            bool useInMemoryDatabase = true,
+            bool? enablePeriodicUpdates = null,
+            string? downloadUrl = null)
     {
-        return new TestWebApplicationFactory(configuration);
-    }
-
-    /// <summary>
-    /// Creates a test web application factory with default in-memory database configuration.
-    /// </summary>
-    /// <param name="enablePeriodicUpdates">Whether to enable periodic updates in the test application.</param>
-    /// <returns>A configured TestWebApplicationFactory instance with in-memory database.</returns>
-    public static TestWebApplicationFactory CreateTestWebApplicationFactoryWithInMemoryDb(bool enablePeriodicUpdates = false)
-    {
-        var databaseName = $"TestDatabase_{Guid.NewGuid()}";
-        return new TestWebApplicationFactory(new Dictionary<string, string?>
+        var shouldEnablePeriodicUpdates = enablePeriodicUpdates ?? !useInMemoryDatabase;
+        var config = new Dictionary<string, string?>
         {
-            ["UseInMemoryDatabase"] = "true",
-            ["InMemoryDatabaseName"] = databaseName,
-            ["EnablePeriodicUpdates"] = enablePeriodicUpdates.ToString().ToLower()
-        });
-    }
+            ["UseInMemoryDatabase"] = useInMemoryDatabase.ToString().ToLower(),
+            ["EnablePeriodicUpdates"] = shouldEnablePeriodicUpdates.ToString().ToLower()
+        };
 
-    /// <summary>
-    /// Creates a test web application factory configured to use SQLite database.
-    /// </summary>
-    /// <param name="enablePeriodicUpdates">Whether to enable periodic updates in the test application.</param>
-    /// <returns>A tuple containing the factory and the database file name.</returns>
-    public static (TestWebApplicationFactory factory, string databaseFileName) 
-        CreateTestWebApplicationFactoryWithSQLite(bool enablePeriodicUpdates = true)
-    {
+        if (useInMemoryDatabase)
+        {
+            config["InMemoryDatabaseName"] = $"TestDatabase_{Guid.NewGuid()}";
+            if (!string.IsNullOrWhiteSpace(downloadUrl))
+            {
+                config["DownloadUrl"] = downloadUrl;
+            }
+
+            return (new TestWebApplicationFactory(config), null);
+        }
+
         var databaseName = $"TestDatabase_{Guid.NewGuid()}.db";
-        var factory = new TestWebApplicationFactory(new Dictionary<string, string?>
+        config["ConnectionString"] = $"Data Source={databaseName}";
+        if (!string.IsNullOrWhiteSpace(downloadUrl))
         {
-            ["UseInMemoryDatabase"] = "false",
-            ["ConnectionString"] = $"Data Source={databaseName}",
-            ["EnablePeriodicUpdates"] = enablePeriodicUpdates.ToString().ToLower()
-        });
-        
-        return (factory, databaseName);
+            config["DownloadUrl"] = downloadUrl;
+        }
+
+        return (new TestWebApplicationFactory(config), databaseName);
     }
 
     /// <summary>

@@ -1,11 +1,11 @@
 /// <summary>
 /// This service is responsible for downloading METAR observations from an external web source. 
-/// The observations are expected to be in a GZipped CSV format and contain at least the following fields: station_id, observation_time, temperature_c, and raw_text.
+/// The observations are expected to be in a GZipped CSV format and contain at least the following fields: station_id, observation_time, temp_c, and raw_text.
 /// </summary>
 public interface IDownloadService
 {
     /// <summary>
-    /// Downloads the GZipped METAR data from the specified URL. It returns a stream of the downloaded data, which can be further processed (e.g., unzipped and parsed). If the download fails, it returns an empty stream.
+    /// Downloads the GZipped METAR data from the specified URL. It returns a stream of the downloaded data. If the download fails, it returns an empty stream.
     /// </summary>
     /// <returns>A stream containing the GZipped METAR data. If the download fails, it returns an empty stream.</returns>
     Task<Stream> DownloadMetarsGZipAsync();

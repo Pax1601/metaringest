@@ -11,7 +11,7 @@ public class DownloadService : IDownloadService
     private readonly ILogger<DownloadService> _logger;
     private readonly string _url;
 
-    public DownloadService(HttpClient httpClient, ILogger<DownloadService> logger, IOptions<MetarSettings> settings)
+    public DownloadService(HttpClient httpClient, ILogger<DownloadService> logger, IOptions<MetarAPISettings> settings)
     {
         _httpClient = httpClient;
         _logger = logger;

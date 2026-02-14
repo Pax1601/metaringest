@@ -213,13 +213,12 @@ var assemblies = [
   {
     "name": "MetarIngest.API",
     "classes": [
-      { "name": "AppDbContext", "rp": "MetarIngest.API_AppDbContext.html", "cl": 14, "ucl": 0, "cal": 14, "tl": 32, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "DownloadService", "rp": "MetarIngest.API_DownloadService.html", "cl": 62, "ucl": 14, "cal": 76, "tl": 188, "cb": 18, "tb": 20, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "IngestionService", "rp": "MetarIngest.API_IngestionService.html", "cl": 5, "ucl": 0, "cal": 5, "tl": 81, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "MetarSettings", "rp": "MetarIngest.API_MetarSettings.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 12, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "Observation", "rp": "MetarIngest.API_Observation.html", "cl": 6, "ucl": 0, "cal": 6, "tl": 24, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "PeriodicUpdateService", "rp": "MetarIngest.API_PeriodicUpdateService.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 48, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "Program", "rp": "MetarIngest.API_Program.html", "cl": 128, "ucl": 3, "cal": 131, "tl": 147, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "AppDbContext", "rp": "MetarIngest.API_AppDbContext.html", "cl": 12, "ucl": 0, "cal": 12, "tl": 32, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "DownloadService", "rp": "MetarIngest.API_DownloadService.html", "cl": 68, "ucl": 17, "cal": 85, "tl": 184, "cb": 21, "tb": 24, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "IngestionService", "rp": "MetarIngest.API_IngestionService.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 118, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "Observation", "rp": "MetarIngest.API_Observation.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 40, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "PeriodicUpdateService", "rp": "MetarIngest.API_PeriodicUpdateService.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 78, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "Program", "rp": "MetarIngest.API_Program.html", "cl": 134, "ucl": 3, "cal": 137, "tl": 151, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
     ]},
 ];
 
@@ -228,9 +227,17 @@ var metrics = [{ "name": "Crap Score", "abbreviation": "crp", "explanationUrl": 
 var historicCoverageExecutionTimes = [];
 
 var riskHotspotMetrics = [
+      { "name": "Crap Score", "explanationUrl": "https://googletesting.blogspot.de/2011/02/this-code-is-crap.html" },
+      { "name": "Cyclomatic complexity", "explanationUrl": "https://en.wikipedia.org/wiki/Cyclomatic_complexity" },
 ];
 
 var riskHotspots = [
+  {
+    "assembly": "MetarIngest.API", "class": "DownloadService", "reportPath": "MetarIngest.API_DownloadService.html", "methodName": "ParseCsvStream(System.IO.Stream)", "methodShortName": "ParseCsvStream(...)", "fileIndex": 0, "line": 75,
+    "metrics": [
+      { "value": 18, "exceeded": false },
+      { "value": 18, "exceeded": true },
+    ]},
 ];
 
 var branchCoverageAvailable = true;

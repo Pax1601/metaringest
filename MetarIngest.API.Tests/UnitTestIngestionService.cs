@@ -20,7 +20,7 @@ public class UnitTestIngestionService
         // Verify that the observation was added to the database context and saved
         var savedObservation = await dbContext.Observations.FindAsync(observation.StationId, observation.ObservationTime);
         Assert.NotNull(savedObservation);
-        Assert.Equal(observation.StationId, savedObservation!.StationId);
+        Assert.Equal(observation.StationId, savedObservation.StationId);
         Assert.Equal(observation.ObservationTime, savedObservation.ObservationTime);
         Assert.Equal(observation.Temperature, savedObservation.Temperature);
         Assert.Equal(observation.RawMetar, savedObservation.RawMetar);

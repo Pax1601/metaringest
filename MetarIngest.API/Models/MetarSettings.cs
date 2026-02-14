@@ -1,7 +1,7 @@
 /// <summary>
 /// Configuration class for the METAR API.
 /// </summary>
-public class MetarSettings
+public class MetarAPISettings
 {
     /// <summary>
     /// URL of the METAR data source. Default is https://aviationweather.gov/data/cache/metars.cache.csv.gz.

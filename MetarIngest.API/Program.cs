@@ -41,7 +41,7 @@ public class Program
                     }
 
                     // Configure settings
-                    services.Configure<MetarSettings>(options =>
+                    services.Configure<MetarAPISettings>(options =>
                     {
                         options.Url = configuration.GetValue<string>("DownloadUrl") ?? "https://aviationweather.gov/data/cache/metars.cache.csv.gz";
                         options.UpdateInterval = configuration.GetValue("UpdateInterval", TimeSpan.FromMinutes(10));

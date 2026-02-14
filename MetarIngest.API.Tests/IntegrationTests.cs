@@ -5,9 +5,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Data.Sqlite;
 
 // Custom factory that configures settings before Program runs
+// This is necessary to avoid the fact that Program.cs will by default start to ingest data automatically
 public class TestWebApplicationFactory : WebApplicationFactory<Program>
 {
     private readonly Dictionary<string, string?> _configuration;
@@ -33,7 +33,7 @@ public class IntegrationTests
     [Fact]
     public async Task IngestRealMetarData_ShouldSucceed()
     {
-        var factory = TestHelper.CreateTestWebApplicationFactoryWithInMemoryDb();
+        var (factory, _) = TestHelper.CreateTestWebApplicationFactory();
 
         using var scope = factory.Services.CreateScope();
         var ingestionService = scope.ServiceProvider.GetRequiredService<IIngestionService>();
@@ -69,13 +69,8 @@ public class IntegrationTests
     [Fact]
     public async Task IngestRealMetarData_ShouldFail()
     {
-        var factory = TestHelper.CreateTestWebApplicationFactory(new Dictionary<string, string?>
-        {
-            ["UseInMemoryDatabase"] = "true",
-            ["InMemoryDatabaseName"] = $"TestDatabase_{Guid.NewGuid()}",
-            ["DownloadUrl"] = "https://invalid-url-for-testing.com/metars.cache.csv.gz",
-            ["EnablePeriodicUpdates"] = "false"
-        });
+        var (factory, _) = TestHelper.CreateTestWebApplicationFactory(
+            downloadUrl: "https://invalid-url-for-testing.com/metars.cache.csv.gz");
 
         using var scope = factory.Services.CreateScope();
         var ingestionService = scope.ServiceProvider.GetRequiredService<IIngestionService>();
@@ -101,11 +96,12 @@ public class IntegrationTests
         }
     }
 
-    // Positive test case: Start the application, fetch the latest observations, and then try to retrieve both the latest observation and the average temperature testing the HTTP endpoints
+    // Positive test case: Start the application, fetch the latest observations, and then try to retrieve both the latest observation and 
+    // the average temperature testing the HTTP endpoints
     [Fact]
     public async Task FetchLatestObservations_ShouldReturnData()
     {
-        var factory = TestHelper.CreateTestWebApplicationFactoryWithInMemoryDb();
+        var (factory, _) = TestHelper.CreateTestWebApplicationFactory();
 
         using var client = factory.CreateClient();
 
@@ -135,11 +131,12 @@ public class IntegrationTests
         }
     }
 
-    // Negative test case: Start the application, fetch the latest observations, and then try to retrieve both the latest observation and the average temperature testing the HTTP endpoints for a non-existent station ID, verifying that the endpoints return 404 Not Found
+    // Negative test case: Start the application, fetch the latest observations, and then try to retrieve both the latest observation and 
+    // the average temperature testing the HTTP endpoints for a non-existent station ID, verifying that the endpoints return 404 Not Found
     [Fact]
     public async Task FetchLatestObservations_ShouldReturnNotFoundForNonExistentStation()
     {
-        var factory = TestHelper.CreateTestWebApplicationFactoryWithInMemoryDb();
+        var (factory, _) = TestHelper.CreateTestWebApplicationFactory();
 
         using var client = factory.CreateClient();
 
@@ -165,11 +162,12 @@ public class IntegrationTests
         }
     }
 
-    // Positive test case: Start the application using a test SQLite database, fetch the latest observations, and then try to retrieve both the latest observation and the average temperature testing the HTTP endpoints
+    // Positive test case: Start the application using a test SQLite database, wait for the periodic updates, and then try to retrieve 
+    // both the latest observation and the average temperature testing the HTTP endpoints
     [Fact]
     public async Task FetchLatestObservations_ShouldReturnData_WithSQLite()
     {
-        var (factory, databaseFileName) = TestHelper.CreateTestWebApplicationFactoryWithSQLite();
+        var (factory, databaseFileName) = TestHelper.CreateTestWebApplicationFactory(useInMemoryDatabase: false);
         using var client = factory.CreateClient();
 
         try
@@ -177,12 +175,10 @@ public class IntegrationTests
             // Wait until the application is ready and the database is initialized
             using var scope = factory.Services.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-            // Wait for the database to be initialized before attempting to fetch observations
             var ingestionService = scope.ServiceProvider.GetRequiredService<IIngestionService>();
             await ingestionService.WaitForDatabaseReadyAsync(CancellationToken.None);
 
-            // Wait for the ingestion service to ingest some data into the database 
+            // Wait for the ingestion service to ingest some data into the database. Timeout after 30 seconds
             var maxWaitTime = TimeSpan.FromSeconds(30);
             var startTime = DateTime.UtcNow;
             while (true)
@@ -197,7 +193,7 @@ public class IntegrationTests
                 {
                     throw new TimeoutException("Timed out waiting for data to be ingested into the database.");
                 }
-                await Task.Delay(1000); // Wait for 1 second before checking again
+                await Task.Delay(1000);
             }
             
             // Fetch the latest observation for a known station ID (Milan Linate Airport - LIML)
