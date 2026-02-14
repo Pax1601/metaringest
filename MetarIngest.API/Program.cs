@@ -47,7 +47,7 @@ public class Program
                         options.UpdateInterval = configuration.GetValue("UpdateInterval", TimeSpan.FromMinutes(10));
 
                         // Check that the update interval is a positive value and is greater than 10 seconds to prevent excessively frequent updates
-                        if (options.UpdateInterval <= TimeSpan.FromSeconds(10))
+                        if (options.UpdateInterval < TimeSpan.FromSeconds(10))
                         {
                             var logger = LoggerFactory.Create(builder => builder.AddConsole()).CreateLogger<Program>();
                             logger.LogWarning("The configured update interval of {Interval} is lower than the minimum value of 10 seconds. Using 10 seconds instead.", options.UpdateInterval);

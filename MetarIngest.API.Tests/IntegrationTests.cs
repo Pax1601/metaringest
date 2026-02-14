@@ -162,65 +162,6 @@ public class IntegrationTests
         }
     }
 
-    // Positive test case: Start the application using a test SQLite database, wait for the periodic updates, and then try to retrieve 
-    // both the latest observation and the average temperature testing the HTTP endpoints
-    [Fact]
-    public async Task FetchLatestObservations_ShouldReturnData_WithSQLite()
-    {
-        var (factory, databaseFileName) = TestHelper.CreateTestWebApplicationFactory(useInMemoryDatabase: false);
-        using var client = factory.CreateClient();
-
-        try
-        {
-            // Wait until the application is ready and the database is initialized
-            using var scope = factory.Services.CreateScope();
-            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            var ingestionService = scope.ServiceProvider.GetRequiredService<IIngestionService>();
-            await ingestionService.WaitForDatabaseReadyAsync(CancellationToken.None);
-
-            // Wait for the ingestion service to ingest some data into the database. Timeout after 30 seconds
-            var maxWaitTime = TimeSpan.FromSeconds(30);
-            var startTime = DateTime.UtcNow;
-            while (true)
-            {
-                var observationsCount = await dbContext.Observations.CountAsync();
-                if (observationsCount > 0)
-                {
-                    break; // Data has been ingested, we can proceed with fetching observations
-                }
-
-                if (DateTime.UtcNow - startTime > maxWaitTime)
-                {
-                    throw new TimeoutException("Timed out waiting for data to be ingested into the database.");
-                }
-                await Task.Delay(1000);
-            }
-            
-            // Fetch the latest observation for a known station ID (Milan Linate Airport - LIML)
-            var response = await client.GetAsync("/observations/LIML");
-            response.EnsureSuccessStatusCode();
-            var observationJson = await response.Content.ReadAsStringAsync();
-            Assert.False(string.IsNullOrEmpty(observationJson), "The response should contain observation data.");
-
-            // Fetch the average temperature for a known station ID (Milan Linate Airport - LIML)
-            var avgTempResponse = await client.GetAsync("/observations/LIML/average-temperature");
-            avgTempResponse.EnsureSuccessStatusCode();
-            var avgTempJson = await avgTempResponse.Content.ReadAsStringAsync();
-            Assert.False(string.IsNullOrEmpty(avgTempJson), "The response should contain average temperature data.");
-
-            // Fetch all the average temperature observations and check at least one is present
-            var allAvgTempResponse = await client.GetAsync("/observations/average-temperature");
-            allAvgTempResponse.EnsureSuccessStatusCode();
-            var allAvgTempJson = await allAvgTempResponse.Content.ReadAsStringAsync();
-            Assert.False(string.IsNullOrEmpty(allAvgTempJson), "The response should contain average temperature data.");
-        }
-        finally
-        {
-            // Cleanup: Delete the database after the test
-            await TestHelper.CleanupIntegrationTestAsync(factory, databaseFileName);
-        }
-    }
-
     // Positive test case: Check that observations older than 24 hours are deleted by the periodic update service
     [Fact]
     public async Task PeriodicUpdateService_ShouldDeleteOldObservations()
@@ -276,4 +217,100 @@ public class IntegrationTests
         }
     }
 
+    // Positive test case: Verify that the periodic update service successfully ingests data at the specified interval
+        [Fact]
+    public async Task PeriodicUpdateService_ShouldIngestDataAtInterval()
+    {
+        var (factory, databaseFileName) = TestHelper.CreateTestWebApplicationFactory(useInMemoryDatabase: true,
+         enablePeriodicUpdates: true, updateInterval: TimeSpan.FromSeconds(10));
+        using var client = factory.CreateClient();
+
+        try
+        {
+            // Wait until the application is ready and the database is initialized
+            using var scope = factory.Services.CreateScope();
+            var ingestionService = scope.ServiceProvider.GetRequiredService<IIngestionService>();
+            await ingestionService.WaitForDatabaseReadyAsync(CancellationToken.None);
+
+            // Wait for the periodic update service to run and ingest data. Timeout after 30 seconds
+            var maxWaitTime = TimeSpan.FromSeconds(30);
+            await TestHelper.WaitForObservationsAsync(
+                factory,
+                maxWaitTime,
+                "Timed out waiting for the periodic update service to ingest data.");
+
+            // Delete all the ingested observations to prepare for the next ingestion cycle
+            using (var deleteScope = factory.Services.CreateScope())
+            {
+                var deleteDbContext = deleteScope.ServiceProvider.GetRequiredService<AppDbContext>();
+                deleteDbContext.Observations.RemoveRange(deleteDbContext.Observations);
+                await deleteDbContext.SaveChangesAsync();
+            }
+
+            // Verify that the database is empty after deletion
+            using var verifyScope = factory.Services.CreateScope();
+            var verifyDbContext = verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var observationsCountAfterDeletion = await verifyDbContext.Observations.AsNoTracking().CountAsync();
+            Assert.Equal(0, observationsCountAfterDeletion);
+
+            // Wait for the periodic update service to run again and ingest data. Timeout after 30 seconds
+            await TestHelper.WaitForObservationsAsync(
+                factory,
+                maxWaitTime,
+                "Timed out waiting for the periodic update service to ingest data again.");
+        }
+        finally
+        {
+            // Cleanup: Delete the database after the test
+            await TestHelper.CleanupIntegrationTestAsync(factory, databaseFileName);
+        }
+    }
+
+    // Positive test case: Start the application using a test SQLite database, wait for the periodic updates, and then try to retrieve 
+    // both the latest observation and the average temperature testing the HTTP endpoints
+    [Fact]
+    public async Task FetchLatestObservations_ShouldReturnData_WithSQLite()
+    {
+        var (factory, databaseFileName) = TestHelper.CreateTestWebApplicationFactory(useInMemoryDatabase: false);
+        using var client = factory.CreateClient();
+
+        try
+        {
+            // Wait until the application is ready and the database is initialized
+            using var scope = factory.Services.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var ingestionService = scope.ServiceProvider.GetRequiredService<IIngestionService>();
+            await ingestionService.WaitForDatabaseReadyAsync(CancellationToken.None);
+
+            // Wait for the ingestion service to ingest some data into the database. Timeout after 30 seconds
+            var maxWaitTime = TimeSpan.FromSeconds(30);
+            await TestHelper.WaitForObservationsAsync(
+                factory,
+                maxWaitTime,
+                "Timed out waiting for data to be ingested into the database.");
+            
+            // Fetch the latest observation for a known station ID (Milan Linate Airport - LIML)
+            var response = await client.GetAsync("/observations/LIML");
+            response.EnsureSuccessStatusCode();
+            var observationJson = await response.Content.ReadAsStringAsync();
+            Assert.False(string.IsNullOrEmpty(observationJson), "The response should contain observation data.");
+
+            // Fetch the average temperature for a known station ID (Milan Linate Airport - LIML)
+            var avgTempResponse = await client.GetAsync("/observations/LIML/average-temperature");
+            avgTempResponse.EnsureSuccessStatusCode();
+            var avgTempJson = await avgTempResponse.Content.ReadAsStringAsync();
+            Assert.False(string.IsNullOrEmpty(avgTempJson), "The response should contain average temperature data.");
+
+            // Fetch all the average temperature observations and check at least one is present
+            var allAvgTempResponse = await client.GetAsync("/observations/average-temperature");
+            allAvgTempResponse.EnsureSuccessStatusCode();
+            var allAvgTempJson = await allAvgTempResponse.Content.ReadAsStringAsync();
+            Assert.False(string.IsNullOrEmpty(allAvgTempJson), "The response should contain average temperature data.");
+        }
+        finally
+        {
+            // Cleanup: Delete the database after the test
+            await TestHelper.CleanupIntegrationTestAsync(factory, databaseFileName);
+        }
+    }
 }

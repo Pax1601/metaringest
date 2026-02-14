@@ -165,6 +165,41 @@ public static class TestHelper
     }
 
     /// <summary>
+    /// Waits until at least one observation exists in the database.
+    /// </summary>
+    /// <param name="factory">The test web application factory used to resolve scoped services.</param>
+    /// <param name="maxWaitTime">Maximum amount of time to wait before throwing a timeout.</param>
+    /// <param name="timeoutMessage">Message used for the timeout exception when no data appears in time.</param>
+    /// <param name="pollInterval">Optional polling interval. Defaults to 1 second.</param>
+    public static async Task WaitForObservationsAsync(
+        TestWebApplicationFactory factory,
+        TimeSpan maxWaitTime,
+        string timeoutMessage,
+        TimeSpan? pollInterval = null)
+    {
+        var interval = pollInterval ?? TimeSpan.FromSeconds(1);
+        var startTime = DateTime.UtcNow;
+
+        while (true)
+        {
+            using var scope = factory.Services.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var observationsCount = await dbContext.Observations.AsNoTracking().CountAsync();
+            if (observationsCount > 0)
+            {
+                return;
+            }
+
+            if (DateTime.UtcNow - startTime > maxWaitTime)
+            {
+                throw new TimeoutException(timeoutMessage);
+            }
+
+            await Task.Delay(interval);
+        }
+    }
+
+    /// <summary>
     /// Creates a test observation with the specified parameters.
     /// </summary>
     /// <param name="stationId">The station identifier.</param>

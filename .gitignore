@@ -402,3 +402,6 @@ FodyWeavers.xsd
 .DS_Store
 MetarIngest.API/metaringest.db-shm
 MetarIngest.API/metaringest.db-wal
+
+#SQLite files
+MetarIngest.API/metaringest.db
