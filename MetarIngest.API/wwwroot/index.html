@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Airport Map Sample</title>
+	<link href="https://unpkg.com/maplibre-gl@5.2.0/dist/maplibre-gl.css" rel="stylesheet" />
+	<style>
+		html,
+		body {
+			margin: 0;
+			padding: 0;
+			width: 100%;
+			height: 100%;
+			font-family: Arial, sans-serif;
+		}
+
+		#map {
+			width: 100%;
+			height: 100%;
+		}
+
+		.maplibregl-popup-content {
+			max-width: 320px;
+			font-size: 12px;
+			line-height: 1.4;
+		}
+	</style>
+</head>
+<body>
+	<div id="map"></div>
+
+	<script src="https://unpkg.com/maplibre-gl@5.2.0/dist/maplibre-gl.js"></script>
+	<script>
+		const map = new maplibregl.Map({
+			container: "map",
+			style: "https://demotiles.maplibre.org/style.json",
+			center: [0, 20],
+			zoom: 1.5
+		});
+
+		map.addControl(new maplibregl.NavigationControl(), "top-right");
+
+		const popup = new maplibregl.Popup({
+			closeButton: false,
+			closeOnClick: false,
+			maxWidth: "320px"
+		});
+
+		// Cache station lookups so hover popups do not re-fetch the same airport data repeatedly.
+		const observationCache = new Map();
+
+		// Convert airports.json object into GeoJSON points and attach temperature (when available).
+		function toFeatureCollection(airports, temperatureByStation) {
+			const features = [];
+
+			for (const [identifier, coords] of Object.entries(airports)) {
+				if (!Array.isArray(coords) || coords.length < 2) {
+					continue;
+				}
+
+				const lat = Number(coords[0]);
+				const lng = Number(coords[1]);
+
+				if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+					continue;
+				}
+
+				const feature = {
+					type: "Feature",
+					geometry: {
+						type: "Point",
+						coordinates: [lng, lat]
+					},
+					properties: {
+						identifier
+					}
+				};
+
+				// Join the station's average temperature so circle color can be driven by heat scale.
+				const averageTemperature = temperatureByStation.get(identifier);
+				if (Number.isFinite(averageTemperature)) {
+					feature.properties.averageTemperature = averageTemperature;
+				}
+
+				features.push(feature);
+			}
+
+			return {
+				type: "FeatureCollection",
+				features
+			};
+		}
+
+		function escapeHtml(value) {
+			return String(value)
+				.replaceAll("&", "&amp;")
+				.replaceAll("<", "&lt;")
+				.replaceAll(">", "&gt;")
+				.replaceAll('"', "&quot;")
+				.replaceAll("'", "&#39;");
+		}
+
+		function renderPopupHtml(identifier, data) {
+			const rows = Object.entries(data)
+				.map(([key, value]) => `<div><strong>${escapeHtml(key)}:</strong> ${escapeHtml(value ?? "")}</div>`)
+				.join("");
+
+			return `<div><div><strong>${escapeHtml(identifier)}</strong></div>${rows || "<div>No database data</div>"}</div>`;
+		}
+
+		async function getObservation(stationId) {
+			if (observationCache.has(stationId)) {
+				return observationCache.get(stationId);
+			}
+
+			const response = await fetch(`/observations/${encodeURIComponent(stationId)}`);
+			if (!response.ok) {
+				return null;
+			}
+
+			const json = await response.json();
+			// Store latest station response for subsequent hover events.
+			observationCache.set(stationId, json);
+			return json;
+		}
+
+		// Fetch all per-station average temperatures over the last 24 hours.
+		async function getAverageTemperatures() {
+			const response = await fetch("/observations/average-temperature");
+			if (!response.ok) {
+				throw new Error("Failed to download average temperatures");
+			}
+
+			const rows = await response.json();
+			const temperatureByStation = new Map();
+
+			for (const row of rows) {
+				const stationId = row.stationId ?? row.StationId;
+				const averageTemperature = Number(row.averageTemperature ?? row.AverageTemperature);
+
+				if (typeof stationId === "string" && stationId.length === 4 && Number.isFinite(averageTemperature)) {
+					temperatureByStation.set(stationId, averageTemperature);
+				}
+			}
+
+			return temperatureByStation;
+		}
+
+		async function initialize() {
+			const [airportsResponse, temperatureByStation] = await Promise.all([
+				fetch("/airports.json"),
+				getAverageTemperatures()
+			]);
+
+			if (!airportsResponse.ok) {
+				throw new Error("Failed to download airports.json");
+			}
+
+			const airports = await airportsResponse.json();
+			const featureCollection = toFeatureCollection(airports, temperatureByStation);
+
+			map.on("load", () => {
+				// Single source for airport circles.
+				map.addSource("airports", {
+					type: "geojson",
+					data: featureCollection
+				});
+
+				map.addLayer({
+					id: "airport-circles",
+					type: "circle",
+					source: "airports",
+					paint: {
+						"circle-radius": 4,
+						// Cold-to-hot color ramp in Celsius; gray when no temperature exists.
+						"circle-color": [
+							"case",
+							["has", "averageTemperature"],
+							[
+								"interpolate",
+								["linear"],
+								["get", "averageTemperature"],
+								-30, "#313695",
+								-10, "#74add1",
+								0, "#ffffbf",
+								10, "#fdae61",
+								30, "#a50026"
+							],
+							"#9e9e9e"
+						],
+						"circle-opacity": 0.8,
+						"circle-stroke-width": 1,
+						"circle-stroke-color": [
+							"case",
+							["has", "averageTemperature"],
+							[
+								"interpolate",
+								["linear"],
+								["get", "averageTemperature"],
+								-30, "#252a76",
+								-10, "#5f90b2",
+								0, "#cfcf98",
+								10, "#d38f4c",
+								30, "#7e001c"
+							],
+							"#7a7a7a"
+						]
+					}
+				});
+
+				map.on("mouseenter", "airport-circles", async (event) => {
+					map.getCanvas().style.cursor = "pointer";
+
+					const feature = event.features && event.features[0];
+					if (!feature || !feature.properties) {
+						return;
+					}
+
+					const stationId = feature.properties.identifier;
+					const coordinates = feature.geometry && feature.geometry.coordinates;
+					if (!stationId || !Array.isArray(coordinates)) {
+						return;
+					}
+
+					popup
+						.setLngLat(coordinates)
+						.setHTML(`<div><strong>${escapeHtml(stationId)}</strong></div><div>Loading...</div>`)
+						.addTo(map);
+
+					try {
+						// Load full station record from the API and render it in the popup.
+						const observation = await getObservation(stationId);
+						if (observation) {
+							popup.setHTML(renderPopupHtml(stationId, observation));
+						} else {
+							popup.setHTML(`<div><strong>${escapeHtml(stationId)}</strong></div><div>No data in database</div>`);
+						}
+					} catch {
+						popup.setHTML(`<div><strong>${escapeHtml(stationId)}</strong></div><div>Failed to load database data</div>`);
+					}
+				});
+
+				map.on("mouseleave", "airport-circles", () => {
+					map.getCanvas().style.cursor = "";
+					popup.remove();
+				});
+			});
+		}
+
+		initialize().catch((error) => {
+			console.error(error);
+			alert("Unable to initialize airport map sample.");
+		});
+	</script>
+</body>
+</html>

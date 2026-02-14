@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using Microsoft.EntityFrameworkCore;
 
 /// <summary>
 /// This class is responsible for periodically updating the database with the latest METAR observations.
@@ -50,6 +51,15 @@ public class PeriodicUpdateService: BackgroundService
                     await ingestionService.WaitForDatabaseReadyAsync(stoppingToken);
                     // Ingest the latest observations into the database
                     await ingestionService.IngestLatestObservationsAsync();
+                    // Count the number of observations in the database after ingestion
+                    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                    var observationCount = await dbContext.Observations.CountAsync(stoppingToken);
+                    _logger.LogInformation("Ingested latest observations. Total observations in database: {Count}", observationCount);
+                    // Remove old observations from the database
+                    await ingestionService.RemoveOldObservationsAsync();
+                    // Count the number of observations in the database after removing old observations
+                    observationCount = await dbContext.Observations.CountAsync(stoppingToken);
+                    _logger.LogInformation("Removed old observations. Total observations in database after cleanup: {Count}", observationCount);
                 }
 
                 _logger.LogInformation("Successfully ingested latest observations. Next update in {Minutes} minutes.", _updateInterval.TotalMinutes);

@@ -91,4 +91,30 @@ public class UnitTestIngestionService
         Assert.Equal(observation1.Temperature, savedObservations[0].Temperature);
         Assert.Equal(observation1.RawMetar, savedObservations[0].RawMetar);
     }
+
+    // Positive test case: Verify that the RemoveOldObservationsAsync method successfully removes observations older than 24 hours from the database context
+    [Fact]
+    public async Task RemoveOldObservationsAsync_RemovesOldObservations()
+    {
+        // Create an in-memory database context for testing
+        var (ingestionService, dbContext, _) = TestHelper.CreateIngestionService(
+            TestHelper.CreateInMemoryDbContext("TestDatabase3"));
+        
+        // Add observations to the database context, including some that are older than 24 hours
+        var oldObservation = TestHelper.CreateTestObservation("OLD", DateTime.UtcNow.AddHours(-25), 15.0f, "OLD METAR");
+        var recentObservation = TestHelper.CreateTestObservation("RECENT", DateTime.UtcNow.AddHours(-1), 20.0f, "RECENT METAR");
+        dbContext.Observations.AddRange(oldObservation, recentObservation);
+        await dbContext.SaveChangesAsync();
+        
+        // Call the RemoveOldObservationsAsync method to remove observations older than 24 hours
+        await ingestionService.RemoveOldObservationsAsync();
+        
+        // Verify that only the recent observation remains in the database context
+        var savedObservations = await dbContext.Observations.ToListAsync();
+        Assert.Single(savedObservations);
+        Assert.Equal(recentObservation.StationId, savedObservations[0].StationId);
+        Assert.Equal(recentObservation.ObservationTime, savedObservations[0].ObservationTime);
+        Assert.Equal(recentObservation.Temperature, savedObservations[0].Temperature);
+        Assert.Equal(recentObservation.RawMetar, savedObservations[0].RawMetar);
+    }
 }

@@ -103,6 +103,7 @@ public class Program
                         app.UseHttpsRedirection();
                     }
                     app.UseRouting();
+                    app.UseStaticFiles();
 
                     app.UseEndpoints(endpoints =>
                     {
@@ -142,6 +143,22 @@ public class Program
                             }
 
                             return Results.Ok(new { StationId = stationId, AverageTemperature = averageTemperature });
+                        });
+
+                        // Download the average temperature for all stations over the last 24 hours
+                        endpoints.MapGet("/observations/average-temperature", async (AppDbContext dbContext) =>
+                        {
+                            // Calculate the cutoff time for the last 24 hours
+                            var cutoffTime = DateTime.UtcNow.AddHours(-24); 
+
+                            // Calculate the average temperature for all stations over the last 24 hours
+                            var averageTemperatures = await dbContext.Observations
+                                .Where(o => o.ObservationTime >= cutoffTime)
+                                .GroupBy(o => o.StationId)
+                                .Select(g => new { StationId = g.Key, AverageTemperature = g.Average(o => (double?)o.Temperature) })
+                                .ToListAsync();
+
+                            return Results.Ok(averageTemperatures);
                         });
                     });
                 });

@@ -207,6 +207,12 @@ public class IntegrationTests
             avgTempResponse.EnsureSuccessStatusCode();
             var avgTempJson = await avgTempResponse.Content.ReadAsStringAsync();
             Assert.False(string.IsNullOrEmpty(avgTempJson), "The response should contain average temperature data.");
+
+            // Fetch all the average temperature observations and check at least one is present
+            var allAvgTempResponse = await client.GetAsync("/observations/average-temperature");
+            allAvgTempResponse.EnsureSuccessStatusCode();
+            var allAvgTempJson = await allAvgTempResponse.Content.ReadAsStringAsync();
+            Assert.False(string.IsNullOrEmpty(allAvgTempJson), "The response should contain average temperature data.");
         }
         finally
         {
@@ -214,4 +220,60 @@ public class IntegrationTests
             await TestHelper.CleanupIntegrationTestAsync(factory, databaseFileName);
         }
     }
+
+    // Positive test case: Check that observations older than 24 hours are deleted by the periodic update service
+    [Fact]
+    public async Task PeriodicUpdateService_ShouldDeleteOldObservations()
+    {
+        var (factory, databaseFileName) = TestHelper.CreateTestWebApplicationFactory(useInMemoryDatabase: true,
+         enablePeriodicUpdates: true, updateInterval: TimeSpan.FromSeconds(10));
+        using var client = factory.CreateClient();
+
+        try
+        {
+            // Wait until the application is ready and the database is initialized
+            using var scope = factory.Services.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var ingestionService = scope.ServiceProvider.GetRequiredService<IIngestionService>();
+            await ingestionService.WaitForDatabaseReadyAsync(CancellationToken.None);
+
+            // Add an observation older than 24 hours to the database
+            var oldObservation = TestHelper.CreateTestObservation("OLD1", DateTime.UtcNow.AddHours(-25), 15.0f, "OLD METAR");
+            dbContext.Observations.Add(oldObservation);
+            await dbContext.SaveChangesAsync();
+            var oldStationId = oldObservation.StationId;
+            var oldObservationTime = oldObservation.ObservationTime;
+
+            // Wait for the periodic update service to run and delete old observations. Timeout after 10 seconds
+            var maxWaitTime = TimeSpan.FromSeconds(30);
+            var startTime = DateTime.UtcNow;
+            while (true)
+            {
+                // Use a fresh scope/context each iteration so we read current database state,
+                // not tracked entities from an earlier context.
+                using var pollScope = factory.Services.CreateScope();
+                var pollDbContext = pollScope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var observationExists = await pollDbContext.Observations
+                    .AsNoTracking()
+                    .AnyAsync(o => o.StationId == oldStationId && o.ObservationTime == oldObservationTime);
+
+                if (!observationExists)
+                {
+                    break; // Old observation has been deleted, test passed
+                }
+
+                if (DateTime.UtcNow - startTime > maxWaitTime)
+                {
+                    throw new TimeoutException("Timed out waiting for the periodic update service to delete old observations.");
+                }
+                await Task.Delay(1000);
+            }
+        }
+        finally
+        {
+            // Cleanup: Delete the database after the test
+            await TestHelper.CleanupIntegrationTestAsync(factory, databaseFileName);
+        }
+    }
+
 }

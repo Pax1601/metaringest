@@ -20,6 +20,11 @@ public interface IIngestionService
     Task IngestObservationAsync(Observation observation);
 
     /// <summary>
+    /// Removes all observations from the database that are older than 24 hours. This method is called periodically to keep the database clean and prevent it from growing indefinitely.
+    /// </summary> <returns>A task that represents the asynchronous operation.</returns>
+    Task RemoveOldObservationsAsync();
+
+    /// <summary>
     /// Ingests the latest METAR observations into the database. It fetches the latest observations from the DownloadService and adds them to the database.
     /// </summary>
     /// <returns>A task that represents the asynchronous operation.</returns>

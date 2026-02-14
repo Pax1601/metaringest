@@ -10,7 +10,7 @@ Available data are raw text METAR and temperature, and average temperature over 
 
 ### Building and running
 ```bash
-git clone <repository-url>
+git clone <https://github.com/Pax1601/metaringest.git>
 cd metaringest
 dotnet restore
 dotnet build
@@ -18,7 +18,9 @@ dotnet build
 cd MetarIngest.API
 dotnet run --launch-profile http
 ```
+
 or
+
 ```bash
 dotnet run --launch-profile https
 ```

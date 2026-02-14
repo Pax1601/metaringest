@@ -71,6 +71,14 @@ public class IngestionService : IIngestionService
         await _dbContext.SaveChangesAsync();
     }
 
+    public async Task RemoveOldObservationsAsync()
+    {
+        var cutoffTime = DateTime.UtcNow.AddHours(-24);
+        var oldObservations = _dbContext.Observations.Where(o => o.ObservationTime < cutoffTime);
+        _dbContext.Observations.RemoveRange(oldObservations);
+        await _dbContext.SaveChangesAsync();
+    }
+
     public async Task IngestLatestObservationsAsync()
     {
         // Use a semaphore to ensure that only one ingestion process can run at a time, preventing race conditions

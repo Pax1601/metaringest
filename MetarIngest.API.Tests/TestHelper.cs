@@ -95,12 +95,14 @@ public static class TestHelper
     /// If null, defaults to false for in-memory and true for SQLite.
     /// </param>
     /// <param name="downloadUrl">Optional override for the default download service URL.</param>
+    /// <param name="updateInterval">Optional override for the periodic update interval.</param>
     /// <returns>A tuple containing the factory and an optional SQLite database file name.</returns>
     public static (TestWebApplicationFactory factory, string? databaseFileName)
         CreateTestWebApplicationFactory(
             bool useInMemoryDatabase = true,
             bool? enablePeriodicUpdates = null,
-            string? downloadUrl = null)
+            string? downloadUrl = null,
+            TimeSpan? updateInterval = null)
     {
         var shouldEnablePeriodicUpdates = enablePeriodicUpdates ?? !useInMemoryDatabase;
         var config = new Dictionary<string, string?>
@@ -108,6 +110,11 @@ public static class TestHelper
             ["UseInMemoryDatabase"] = useInMemoryDatabase.ToString().ToLower(),
             ["EnablePeriodicUpdates"] = shouldEnablePeriodicUpdates.ToString().ToLower()
         };
+
+        if (updateInterval.HasValue)
+        {
+            config["UpdateInterval"] = updateInterval.Value.ToString("c");
+        }
 
         if (useInMemoryDatabase)
         {

@@ -218,7 +218,7 @@ var assemblies = [
       { "name": "IngestionService", "rp": "MetarIngest.API_IngestionService.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 118, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "Observation", "rp": "MetarIngest.API_Observation.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 40, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "PeriodicUpdateService", "rp": "MetarIngest.API_PeriodicUpdateService.html", "cl": 7, "ucl": 0, "cal": 7, "tl": 78, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "Program", "rp": "MetarIngest.API_Program.html", "cl": 134, "ucl": 3, "cal": 137, "tl": 151, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "Program", "rp": "MetarIngest.API_Program.html", "cl": 151, "ucl": 3, "cal": 154, "tl": 168, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
     ]},
 ];
 
